@@ -1,0 +1,515 @@
+{
+  "name": "Youtube video Summarization",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "youtube",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -940,
+        -180
+      ],
+      "id": "460dcb2c-aa38-4476-a230-46c552325380",
+      "name": "Webhook",
+      "webhookId": "ca1f2b08-2ad3-4c9c-ab59-76fcc677183a"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c3a723bd-c91b-47c5-9390-c58a4c91de05",
+              "name": "YoutubeURL",
+              "value": "={{ $json.body.youtubeUrl }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -720,
+        -180
+      ],
+      "id": "32d58196-7f56-46a6-a19d-7fec8a0e64ab",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "const extractYoutubeId = (url) => {\n  const pattern = /(?:youtube\\.com\\/(?:[^\\/]+\\/.+\\/|(?:v|e(?:mbed)?)\\/|.*[?&]v=)|youtu\\.be\\/)([^\"&?\\/\\s]{11})/;\n  const match = url.match(pattern);\n  return match ? match[1] : null;\n};\n\nconst YoutubeURL = items[0].json.YoutubeURL;\n\nfor (const item of items) {\n  item.json.videoId = extractYoutubeId(YoutubeURL);\n}\n\nreturn items;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -500,
+        -180
+      ],
+      "id": "0a9795fa-2802-495b-a97d-8038f8edc0d5",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "resource": "video",
+        "operation": "get",
+        "videoId": "={{ $json.videoId }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.youTube",
+      "typeVersion": 1,
+      "position": [
+        -280,
+        -180
+      ],
+      "id": "a8d577b0-ed87-4e7f-a029-4fc4c925ddc7",
+      "name": "Get a video",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "r4AKFf6QvgVb2Idm",
+          "name": "YouTube account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=http://192.168.1.100:5001/transcript?videoId={{ $json.id }}",
+        "options": {
+          "response": {
+            "response": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -80,
+        -180
+      ],
+      "id": "cd90ac58-4dc6-450d-9fa2-c3ba277497b2",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "transcript",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -920,
+        0
+      ],
+      "id": "50e07152-c7c0-47e3-b666-68d8d8b1810e",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "fieldsToSummarize": {
+          "values": [
+            {
+              "aggregation": "concatenate",
+              "field": "transcript"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.summarize",
+      "typeVersion": 1.1,
+      "position": [
+        -680,
+        0
+      ],
+      "id": "b19abec4-e582-437a-b7c0-7b1aa35c0a74",
+      "name": "Concatenate"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Please analyze the given text and create a structured summary following these guidelines:\n\n1. Break down the content into main topics using Level 2 headers (##)\n2. Under each header:\n - List only the most essential concepts and key points\n - Use bullet points for clarity\n - Keep explanations concise\n - Preserve technical accuracy\n - Highlight key terms in bold\n3. Organize the information in this sequence:\n - Definition/Background\n - Main characteristics\n - Implementation details\n - Advantages/Disadvantages\n4. Format requirements:\n - Use markdown formatting\n - Keep bullet points simple (no nesting)\n - Bold important terms using **term**\n - Use tables for comparisons\n - Include relevant technical details\n\nPlease provide a clear, structured summary that captures the core concepts while maintaining technical accuracy.\n\nHere is the text: {{ $json.concatenated_transcript }}\n",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -420,
+        20
+      ],
+      "id": "984932b5-703f-40fe-ab95-0fe8dfc96e29",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        220
+      ],
+      "id": "98bac01c-2f19-4613-84d4-36175b97495c",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "....",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "....",
+              "name": "text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "9cb665fd-beba-4733-a752-06fd02261ac3",
+              "name": "description",
+              "value": "={{ $('Get a video').item.json.snippet.description }}",
+              "type": "string"
+            },
+            {
+              "id": "7af1743c-283e-4bc6-8933-413edca1a9fb",
+              "name": "title",
+              "value": "={{ $('Get a video').item.json.snippet.title }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -900,
+        280
+      ],
+      "id": "85527657-7b13-47b2-ae04-005b905010fa",
+      "name": "Response Object"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.text }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -680,
+        280
+      ],
+      "id": "f59d297a-57cc-4e68-849f-5356c8640b4f",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -660,
+        460
+      ],
+      "id": "9780b617-c9bc-4fde-8023-7f246f6d44dd",
+      "name": "Send a text message",
+      "webhookId": "680d0029-327d-427a-aff7-7ac2ea837309"
+    }
+  ],
+  "pinData": {
+    "HTTP Request": [
+      {
+        "json": {
+          "transcript": "Transcriber: Gustavo Rocha\nReviewer: Marssi Draw Hi everyone. Two year ago, my life changed forever. My wife Kelsey and I welcomed our daughter Lela\ninto the world. Now, becoming a parent\nis an amazing experience. Your whole world changes over night. And all of your priorities\nchange immediately. So fast that it makes it really difficult\nto process sometimes. Now, you also have to learn\na tremendous amount about being a parent like, for example,\nhow to dress your child. (Laughter) This was new to me. This is an actual outfit, \nI thought this was a good idea. And even Lela knows\nthat it's not a good idea. (Laughter) So there is so much to learn and\nso much craziness all at once. And to add to the craziness, \nKelsey and I both work from home, we're entrepreneurs,\nwe run our own businesses. So, Kelsey develops courses\nonline for yoga teachers. I'm an author. And so, I'm working from home,\nKelsey's working from home. We have an infant\nand we're trying to make sure that everything gets done\nthat needs done. And life is really, really busy. And a couple of weeks\ninto this amazing experience, when the sleep deprivation\nreally kicked in, like around week eight, I had this thought,\nand it was the same thought that parents across the ages,\ninternationally, everybody has had this thought,\nwhich is: I am never going to have\nfree time ever again. (Laughter) Somebody said it's true. It's not exactly true, but it feels really, really true\nin that moment. And this was really\ndisconcerning to me, because one of the things that I enjoy more than anything else\nis learning new things. Getting curious about something\nand diving in and fiddling around and \nlearning through trial and error. And eventually becoming pretty good\nat something. And without this free time, I didn't know how I was ever \ngoing to do that ever again. And so, I'm a big geek, I want to keep learning things,\nI want to keep growing. And so what I've decided to do was, go to the library,\nand go to the bookstore, and look at what research says about how we learn and how we learn quickly. And I read a bunch of books,\nI read a bunch of websites. And tried to answer this question, how long does it take\nto acquire a new skill? You know what I found? 10,000 hours! Anybody ever heard this? It takes 10,000 hours.\nIf you want to learn something new, if you want to be good at it, it's going to take 10,000 hours\nto get there. And I read this in book after book,\nin website after website. And my mental experience\nof reading all of this stuff was like: No!! I don't have time!\nI don't have 10,000 hours. I am never going to be able\nto learn anything new. Ever again.\n(Laughter) But that's not true. So, 10,000 hours, just to give you\na rough order of magnitude, 10,000 hours is a full-time job\nfor five years. That's a long time. And we've all had the experience\nof learning something new, and it didn't take us anywhere\nclose to that amount of time, right? So, what's up? There's something\nkinda funky going on here. What the research says and what we expect,\nand have experiences, they don't match up. And what I found, here's the wrinkle: The 10,000 hour rule came out of studies\nof expert-level performance. There's a professor\nat Florida State University, his name is K. Anders Ericsson. He is the originator\nof the 10,00 hour rule. And where that came from is,\nhe studied professional athletes, world class musicians,\nchess grand masters. All of this ultra competitive folks\nin ultra-high performing fields. And he tried to figure out\nhow long does it take to get to the top\nof those kinds of fields. And what he found is,\nthe more deliberate practice, the more time\nthat those individuals spend practicing the elements\nof whatever it is that they do, the more time you spend,\nthe better you get. And the folks at the tippy top\nof their fields put in around 10,000 hours of practice. Now, we were talking about the game\nof telephone a little bit earlier. Here's what happened: an author by the name\nof Malcolm Gladwell wrote a book in 2007 called\n\"Outliers: The Story of Success\", and the central piece of that book\nwas the 10,000 hour rule. Practice a lot, practice well,\nand you will do extremely well, you will reach the top of your field. So, the message, what Dr. Ericsson was actually saying is, it takes 10,000 hours to get\nat the top of an ultra competitive field in a very narrow subject,\nthat's what that means. But here's what happened:\never since Outliers came out, immediately came out,\nreached the top of best seller lists, stayed there for three solid months. All of a sudden the 10,000 hour rule\nwas everywhere. And a society-wide game of telephone\nstarted to be played. So this message, it takes 10,000 hours\nto reach the top of an ultra competitive field, became, it takes 10,000 hours\nto become an expert at something, which became, it takes 10,000 hours to become\ngood at something, which became, it takes 10,000 hours\nto learn something. But that last statement,\nit takes 10,000 hours to learn something, is not true.\nIt's not true. So, what the research actually says -- I spent a lot of time here\nat the CSU library in the cognitive psychology stacks\n'cause I'm a geek. And when you actually look\nat the studies of skill acquisition, you see over and over\na graph like this. Now, researchers,\nwhether they're studying a motor skill, something you do physically\nor a mental skill, they like to study things\nthat they can time. 'Cause you can quantify that, right? So, they'll give research participants\na little task, something that requires\nphysical arrangement, or something that requires\nlearning a little mental trick, and they'll time how long a participant\ntakes to complete the skill. And here's what this graph says,\nwhen you start -- so when researchers gave participants\na task, it took them a really long time, 'cause it was new\nand they were horrible. With a little bit of practice,\nthey get better and better and better. And that early part of practice\nis really, really efficient. People get good at things\nwith just a little bit of practice. Now, what's interesting to note is that, for skills that we want to learn\nfor ourselves, we don't care so much about time,\nright? We just care about how good we are,\nwhatever good happens to mean. So if we relabel performance time\nto how good you are, the graph flips, and you get\nhis famous and widely known, this is the learning curve. And the story of the learning curve\nis when you start, you're grossly incompetent\nand you know it, right? (Laughter) With a little bit of practice,\nyou get really good, really quick. So that early level of improvement\nis really fast. And then at a certain point\nyou reach a plateau, and the subsequent games\nbecome much harder to get, they take more time to get. Now, my question is,\nI want that, right? How long does it take\nfrom starting something and being grossly incompetent\nand knowing it to being reasonably good? In hopefully, as short a period of time\nas possible. So, how long does that take? Here's what my research says: 20 hours. That's it.\nYou can go from knowing nothing about any skill that you can think of. Want to learn a language?\nWant to learn how to draw? Want to learn how to juggle\nflaming chainsaws? (Laughter) If you put 20 hours of focused\ndeliberate practice into that thing, you will be astounded. Astounded at how good you are. 20 hours is doable, that's about 45 minutes a day\nfor about a month. Even skipping a couple days,\nhere and there. 20 hours isn't that hard to accumulate. Now, there's a method to doing this. Because it's not like you can just start\nfiddling around for about 20 hours and expect these massive improvements. There's a way to practice intelligently. There's a way to practice efficiently, that will make sure that you invest\nthose 20 hours in the most effective way\nthat you possibly can. And here's the method,\nit applies to anything: The first is to deconstruct the skill. Decide exactly what you want\nto be able to do when you're done, and then look into the skill\nand break it down into smaller pieces. Most of the things\nthat we think of as skills are actually big bundles of skills\nthat require all sorts of different things. The more you can break apart the skill, the more you're able to decide, what are the parts of this skill\nthat would actually help me get to what I want? And then you can practice those first. And if you practice\nthe most important things first, you'll be able to improve\nyour performance in the least amount of time possible. The second is, learn enough\nto self correct. So, get three to five resources\nabout what it is you're trying to learn. Could be book, could be DVDs,\ncould be courses, could be anything. But don't use those as a way\nto procrastinate on practice. I know I do this, right? Get like 20 books about the topic,\nlike, \"I'm going to start learning\nhow to program a computer when I complete these 20 books\". No. That's procrastination. What you want to do\nis learn just enough that you can actually practice and self correct or self edit\nas you practice. So the learning becomes\na way of getting better at noticing\nwhen you're making a mistake and then doing something\na little different. The third is to remove barriers\nto practice. Distractions, television, internet. All of these things\nthat get in the way of you actually sitting down\nand doing the work. And the more you're able to use\njust a little bit of willpower to remove the distractions that\nare keeping you from practicing, the more likely you are to actually\nsit down and practice, right? And the fourth is to practice\nfor at least 20 hours. Now, most skills have what I call\na frustration barrier. You know, the grossly-incompetent-\nand-knowing-it part? That's really, really frustrating.\nWe don't like to feel stupid. And feeling stupid is a barrier to us \nactually sitting down and doing the work. So, by pre-committing to practicing\nwhatever it is that you want to do for at least 20 hours, you will be able to overcome\nthat initial frustration barrier and stick with the practice long enough\nto actually reap the rewards. That's it! It's not rocket science. Four very simple steps that\nyou can use to learn anything. Now, this is easy to talk\nabout in theory, but it's more fun to talk about\nin practice. So one of the things that I've wanted\nto learn how to do for a long time is play the ukulele. Has anybody seen\nJake Shimabukuro's TEDTalk where he plays the ukulele\nand makes it sound like -- he's like a ukulele god. It's amazing. I saw it, I was like,\n\"That is so cool!\" It's such a neat instrument.\nI would really like to learn how to play. And so I decided\nthat to test this theory I wanted to put 20 hours\ninto practicing ukulele and see where it got. And so the first thing\nabout playing the ukulele is, in order to practice,\nyou have to have one, right? So, I got an ukulele and\n-- My lovely assistant? (Laughter) Thank you sir.\nI think I need the chord here. It's not just an ukulele,\nit's an electric ukulele. (Laughter) Yeah. So, the first couple hours are just\nlike the first couple hours of anything. You have to get the tools\nthat you are using to practice. You have to make sure\nthey're available. My ukulele didn't come\nwith strings attached. I had to figure out\nhow to put those on. Like, that's kind of important, right? And learning how to tune,\nlearning how to make sure that all of the things\nthat need to be done in order to start practicing\nget done, right? Now, one of the things when I was\nready to actually start practicing was I looked in online databases\nand songbooks for how to play songs. And they say, okay, ukuleles, you can\nplay more than one string at a time, so you can play chords, that's cool, you are accompanying yourself,\nyay you. (Laughter) And when I started looking at songs, I had an ukulele chord book\nthat had like hundreds of chords. Looking at this and\n\"Wow, that's intimidating\". But when you look at the actual songs, you see the same chords\nover and over, right? As it turns out, playing the ukulele\nis kind of like doing anything, There's a very small set of things\nthat are really important and techniques that you'll use\nall the time. And in most songs\nyou'll use four, maybe five chords, and that's it, that's the song. You don't have to know hundreds,\nas long as you know the four or the five. So, while I was doing my research, I found a wonderful little medley\nof pop songs by a band called Axis of Awesome.\n(Whistles) -- Somebody knows it. -- And what Axis of Awesome says\nis that you can learn, or you can play pretty much\nany pop song of the past five decades, if you know four chords, and those chords are G, D, Em and C. Four chords pump out\nevery pop song ever, right? So I thought, this is cool! I would like to play\nevery pop song ever. (Laughter) So, that was the first song\nI decided to learn, and I would like to actually\nshare it with you. Ready? (Applause)\nAlright. (Music) (Singing)\nJust a small town girl, living in a lonely world, she took the midnight train\ngoing anywhere. I heard that you settled down,\n(Laughter) that you found a girl, that you're married now. Every night in my dreams\n(Laughter) I see you, I feel you, that is how I know you go on.\n(Laughter) I won't hesitate no more, no more.\nIt cannot wait, I'm yours. 'Cause you were amazing,\nwe did amazing things. If I could, then I would,\nI'd go wherever you will -- Can you feel the love tonight.\n(Laughter) I can't live with or without you. When I find myself -- When I find myself in times of trouble,\nmother Mary comes to me, Sometimes I feel like I don't have partner.\nNo woman, no cry. Yeah mama, this surely is a dream. I come from a land down under.\n(Laughter) Once a jolly swagman\ncamped by a billabong. Hey, I just met you, and this is crazy,\n(Laughter) but here's my number, so call me Hey sexy lady, op, op, op, op,\noppan gangnam style. (Laughter) It's time to say goodbye. Closing time, every new beginning\ncomes from some other beginning's end. (Singing and music ends)\n(Applause) Thank you, thank you. I love that song.\n(Laughter) And I have a secret to share with you. So, by playing that song for you, I just hit my twentieth hour\nof practicing the ukulele. (Applause)\nThank you. And so it's amazing, pretty much\nanything that you can think of, what do you want to do. The major barrier to learn\nsomething new is not intellectual, it's not the process of you learning\na bunch of little tips or tricks or things. The major barrier's emotional.\nWe're scared. Feeling stupid doesn't feel good, in the beginning of learning\nanything new you feel really stupid. So the major barrier's not intellectual,\nit's emotional. But put 20 hours into anything. It doesn't matter.\nWhat do you want to learn? Do you want to learn a language?\nWant to learn how to cook? Want to learn how to draw? What turns you on?\nWhat lights you up? Go out and do that thing.\nIt only takes 20 hours. Have fun. (Applause)"
+        }
+      }
+    ],
+    "Get a video": [
+      {
+        "json": {
+          "kind": "youtube#video",
+          "etag": "...",
+          "id": "5MgBikgcWnY",
+          "snippet": {
+            "publishedAt": "2013-03-14T17:17:26Z",
+            "channelId": "UCsT0YIqwnpJCM-mx7-gSA4Q",
+            "title": "The first 20 hours -- how to learn anything | Josh Kaufman | TEDxCSU",
+            "description": "Never miss a talk! SUBSCRIBE to the TEDx channel: http://bit.ly/1FAg8hB\n\nJosh Kaufman is the author of the #1 international bestseller, 'The Personal MBA: Master the Art of Business', as well as the upcoming book 'The First 20 Hours: Mastering the Toughest Part of Learning Anything.' Josh specializes in teaching people from all walks of life how to master practical knowledge and skills. In his talk, he shares how having his first child inspired him to approach learning in a whole new way. \n\nIn the spirit of ideas worth spreading, TEDx is a program of local, self-organized events that bring people together to share a TED-like experience. At a TEDx event, TEDTalks video and live speakers combine to spark deep discussion and connection in a small group. These local, self-organized events are branded TEDx, where x = independently organized TED event. The TED Conference provides general guidance for the TEDx program, but individual TEDx events are self-organized.* (*Subject to certain rules and regulations)",
+            "thumbnails": {
+              "default": {
+                "url": "https://i.ytimg.com/vi/5MgBikgcWnY/default.jpg",
+                "width": 120,
+                "height": 90
+              },
+              "medium": {
+                "url": "https://i.ytimg.com/vi/5MgBikgcWnY/mqdefault.jpg",
+                "width": 320,
+                "height": 180
+              },
+              "high": {
+                "url": "https://i.ytimg.com/vi/5MgBikgcWnY/hqdefault.jpg",
+                "width": 480,
+                "height": 360
+              },
+              "standard": {
+                "url": "https://i.ytimg.com/vi/5MgBikgcWnY/sddefault.jpg",
+                "width": 640,
+                "height": 480
+              },
+              "maxres": {
+                "url": "https://i.ytimg.com/vi/5MgBikgcWnY/maxresdefault.jpg",
+                "width": 1280,
+                "height": 720
+              }
+            },
+            "channelTitle": "TEDx Talks",
+            "tags": [
+              "United States (Country)",
+              "tedx talk",
+              "Psychology",
+              "Colorado State University",
+              "English",
+              "tedx",
+              "TEDxCSU",
+              "Parents",
+              "Learning",
+              "Entertainment",
+              "USA",
+              "tedx talks",
+              "Music",
+              "ted x",
+              "Education",
+              "ted",
+              "Lifestyle",
+              "ted talk",
+              "ted talks"
+            ],
+            "categoryId": "26",
+            "liveBroadcastContent": "none",
+            "defaultLanguage": "en",
+            "localized": {
+              "title": "The first 20 hours -- how to learn anything | Josh Kaufman | TEDxCSU",
+              "description": "Never miss a talk! SUBSCRIBE to the TEDx channel: http://bit.ly/1FAg8hB\n\nJosh Kaufman is the author of the #1 international bestseller, 'The Personal MBA: Master the Art of Business', as well as the upcoming book 'The First 20 Hours: Mastering the Toughest Part of Learning Anything.' Josh specializes in teaching people from all walks of life how to master practical knowledge and skills. In his talk, he shares how having his first child inspired him to approach learning in a whole new way. \n\nIn the spirit of ideas worth spreading, TEDx is a program of local, self-organized events that bring people together to share a TED-like experience. At a TEDx event, TEDTalks video and live speakers combine to spark deep discussion and connection in a small group. These local, self-organized events are branded TEDx, where x = independently organized TED event. The TED Conference provides general guidance for the TEDx program, but individual TEDx events are self-organized.* (*Subject to certain rules and regulations)"
+            },
+            "defaultAudioLanguage": "en-US"
+          },
+          "contentDetails": {
+            "duration": "PT19M27S",
+            "dimension": "2d",
+            "definition": "hd",
+            "caption": "true",
+            "licensedContent": true,
+            "contentRating": {},
+            "projection": "rectangular"
+          },
+          "status": {
+            "uploadStatus": "processed",
+            "privacyStatus": "public",
+            "license": "youtube",
+            "embeddable": true,
+            "publicStatsViewable": true,
+            "madeForKids": false
+          },
+          "statistics": {
+            "viewCount": "41822382",
+            "likeCount": "1028267",
+            "favoriteCount": "0",
+            "commentCount": "17092"
+          },
+          "player": {
+            "embedHtml": "<iframe width=\"480\" height=\"270\" src=\"//www.youtube.com/embed/5MgBikgcWnY\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share\" referrerpolicy=\"strict-origin-when-cross-origin\" allowfullscreen></iframe>"
+          },
+          "topicDetails": {
+            "topicCategories": [
+              "https://en.wikipedia.org/wiki/Knowledge"
+            ]
+          },
+          "recordingDetails": {},
+          "localizations": {
+            "en": {
+              "title": "The first 20 hours -- how to learn anything | Josh Kaufman | TEDxCSU",
+              "description": "Never miss a talk! SUBSCRIBE to the TEDx channel: http://bit.ly/1FAg8hB\n\nJosh Kaufman is the author of the #1 international bestseller, 'The Personal MBA: Master the Art of Business', as well as the upcoming book 'The First 20 Hours: Mastering the Toughest Part of Learning Anything.' Josh specializes in teaching people from all walks of life how to master practical knowledge and skills. In his talk, he shares how having his first child inspired him to approach learning in a whole new way. \n\nIn the spirit of ideas worth spreading, TEDx is a program of local, self-organized events that bring people together to share a TED-like experience. At a TEDx event, TEDTalks video and live speakers combine to spark deep discussion and connection in a small group. These local, self-organized events are branded TEDx, where x = independently organized TED event. The TED Conference provides general guidance for the TEDx program, but individual TEDx events are self-organized.* (*Subject to certain rules and regulations)"
+            },
+            "uk": {
+              "title": "Перші 20 годин - Як навчитися будь-чого | Джош Кауфман | TEDxCSU",
+              "description": "Джош Кауфман є автором топового міжнародного бестселлера, 'Особистий ступінь з менеджменту: опануй мистецтво бізнесу', а також книги, що готується до видання 'Перші 20 годин: опануйте найважче, навчившись будь-чого.' Джош спеціалізується на навчанні людей з різних верств, як здобути практичне вміння та навики. У цьому виступі він розповідає, як народження першої дитини надихнуло його почати навчатися з цілком новим підходом."
+            },
+            "bn": {
+              "title": "প্রথম ২০ ঘন্টা সময়- যেকোন কিছু শেখার পদ্ধতিঃ জশ কফম্যান",
+              "description": "জশ কফম্যান তাঁর বক্তৃতায় বর্ণনা করলেন পৃথিবীতে তাঁর প্রথম সন্তানের আগমন কিভাবে তাকে শেখার জন্য পুরোপুরি নতুন একটি উপায় বের করতে উৎসাহিত করেছে।"
+            },
+            "pt-BR": {
+              "title": "As primeiras 20 horas - Como aprender qualquer coisa: Josh Kaufman no TEDxCSU",
+              "description": "Josh Kaufman é autor do internacional mais vendido número 1, \"The Personal MBA: Master the Art of Business', assim como o próximo livro 'The First 20 Hours: Mastering the Toughest Part of Learning Anything.' Josh é especialista em ensinar pessoas de todas as áreas da vida como dominar o conhecimento e habilidades práticas. Na sua conversa, ele compartilha como foi que ter a sua primeira filha o incentivou a abordar o aprendizado de uma nova forma.\n\nNo espírito de ideias bem compartilhadas, TEDx é um programa local, e um evento independente que trás pessoas juntas para compartilhar uma TED- experiência de vida. Em um TEDx evento,  combinan-se TEDTalks vídeos e apresentações ao vivo para gerar discussão e redes de contatos em pequenos grupos.  Esses locais e independentes eventos são a marca do TEDx, onde x = um evento independente realizado pelo TED. A conferência TED promove orientações gerais para o programa TEDx, mas os eventos individuais do TEDx são independentes. (Sujeitos a certas regras e regulamentos)."
+            },
+            "fa": {
+              "title": "بیست ساعت اول - چطور هر چیزی را یاد بگیریم: جاش کَفمن در TEDxCSU",
+              "description": "در این سخنرانی، جاش کَفمن تعریف می‎کند که چطور به دنیا آمدن اولین بچه‌اش کاری کرد که با یک روش کاملا جدید به یادگیری بپردازد."
+            },
+            "zh-Hant": {
+              "title": "只要 20 小時就能學會任何事 - 喬許．考夫曼 (Josh Kaufman ) 在 TEDxCSU",
+              "description": "喬許．考夫曼在演說中分享了剛出生的女兒如何啓發他找出全新學習的方法。"
+            },
+            "ja": {
+              "title": "最初の20時間 — あらゆることをサクッと学ぶ方法 | ジョシュ・カウフマン | TEDxCSU",
+              "description": "この講演ではジョシュ・カウフマンが子供ができたこときっかけに見出した新しい効果的な学習法を紹介します。"
+            },
+            "vi": {
+              "title": "20 Giờ Đầu Tiên - Cách Học Bất Cứ Điều Gì: Josh Kaufman tại TEDxCSU",
+              "description": "Trong buổi nói chuyện, Josh Kaufman chia sẻ làm sao việc có con gái đầu lòng đã truyền cảm hứng cho anh có thể tiếp cận việc học hỏi theo một cách hoàn toàn mới mẻ."
+            },
+            "sk": {
+              "title": "Prvých 20 hodín: ako sa naučiť čokoľvek | Josh Kaufman | TEDxCSU",
+              "description": "Josh Kaufman je autorom medzinárodného bestselleru číslo jeden „The Personal MBA: Master the Art of Business“, a tiež prichádzajúcej knihy „Prvých 20 hodín: Zvládanie najťažšej časti čohokoľvek“. Josh sa špecializuje na vyučovanie ľudí všetkých zameraní, ako zvládnuť praktické vedomosti a schopnosti. Vo svojej reči rozpráva, ako ho narodenie prvého dieťaťa inšpirovalo k tomu, aby sa začal snažiť učiť celkom novým spôsobom.\n\nToto vystúpenie bolo súčasťou miestneho podujatia TEDx organizovaného nezávisle od konferencií TED."
+            },
+            "pl": {
+              "title": "Pierwsze 20 godzin - jak nauczyć się czegokolwiek: Josh Kaufman na TEDxCSU",
+              "description": "W swojej prezentacji Josh Kaufman opowiada, jak narodziny pierwszego dziecka zainspirowały go do podejścia do kwestii uczenia się w zupełnie nowy sposób."
+            }
+          }
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Get a video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a video": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Concatenate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Concatenate": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Response Object",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response Object": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b78cb8c5-142e-4ca0-8c13-9878d6f7b01c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d96652edab85557dc3aa647184ca626842cdd318dd6bb920b0a951d9e0c24226"
+  },
+  "id": "QHRIQroPYkyzUZ9T",
+  "tags": []
+}
